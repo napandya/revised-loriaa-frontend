@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   Send, TrendingUp, TrendingDown, AlertCircle, Eye, Clock, CheckCircle,
-  Users, DollarSign, Settings as SettingsIcon
+  Users, DollarSign, Settings as SettingsIcon, Sparkles, Copy, RefreshCw, Loader2
 } from 'lucide-react';
-import { API_CONFIG } from '@/config/api';
+import { API_CONFIG, API_ENDPOINTS } from '@/config/api';
 
 const API_URL = API_CONFIG.baseURL;
 
@@ -83,7 +83,7 @@ const workerSettings = [
 const defaultStats = { active_campaigns: 12, pending_approval: 3, leads_generated: 145, cost_per_lead: 4.20 };
 
 export function MarketingAgentPage() {
-  const [tab, setTab] = useState<'pipeline' | 'activity'>('pipeline');
+  const [tab, setTab] = useState<'pipeline' | 'activity' | 'adcopy'>('pipeline');
   const [autoPublish, setAutoPublish] = useState(true);
   const [campaignData, setCampaignData] = useState<any>({ stats: defaultStats });
   const [loading, setLoading] = useState(true);
@@ -153,6 +153,12 @@ export function MarketingAgentPage() {
           data-testid="tab-pipeline">
           Campaign Pipeline
         </button>
+        <button onClick={() => setTab('adcopy')}
+          className={`pb-3 text-base font-medium transition-colors flex items-center gap-2 ${tab === 'adcopy' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          data-testid="tab-adcopy">
+          <Sparkles className="w-4 h-4" />
+          AI Ad Copy Generator
+        </button>
         <button onClick={() => setTab('activity')}
           className={`pb-3 text-base font-medium transition-colors ${tab === 'activity' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
           data-testid="tab-activity">
@@ -160,7 +166,7 @@ export function MarketingAgentPage() {
         </button>
       </div>
 
-      {tab === 'pipeline' ? <PipelineTab /> : <ActivityTab />}
+      {tab === 'pipeline' ? <PipelineTab /> : tab === 'adcopy' ? <AdCopyTab /> : <ActivityTab />}
     </div>
   );
 }
@@ -222,6 +228,309 @@ function PipelineTab() {
             ))}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function AdCopyTab() {
+  const [platform, setPlatform] = useState('facebook');
+  const [objective, setObjective] = useState('lead_generation');
+  const [propertyName, setPropertyName] = useState('');
+  const [specialOffer, setSpecialOffer] = useState('');
+  const [numVariations, setNumVariations] = useState(3);
+  const [generating, setGenerating] = useState(false);
+  const [results, setResults] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const platforms = [
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'google_ads', label: 'Google Ads' },
+    { value: 'tiktok', label: 'TikTok' },
+    { value: 'linkedin', label: 'LinkedIn' },
+  ];
+
+  const objectives = [
+    { value: 'lead_generation', label: 'Lead Generation' },
+    { value: 'brand_awareness', label: 'Brand Awareness' },
+    { value: 'tour_scheduling', label: 'Tour Scheduling' },
+    { value: 'lease_signing', label: 'Lease Signing' },
+    { value: 'move_in_special', label: 'Move-In Special' },
+    { value: 'open_house', label: 'Open House' },
+  ];
+
+  const handleGenerate = async () => {
+    if (!propertyName.trim()) return;
+    setGenerating(true);
+    setError(null);
+    setResults(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams({
+        property_name: propertyName,
+        platform,
+        objective,
+        num_variations: String(numVariations),
+      });
+      if (specialOffer.trim()) params.set('special_offer', specialOffer);
+
+      const res = await fetch(
+        `${API_CONFIG.baseURL}${API_ENDPOINTS.agents.marketing.generateAdCopy}?${params}`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const data = await res.json();
+
+      if (data.success && data.result) {
+        setResults(data.result);
+      } else {
+        setError(data.message || 'Generation failed');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to generate ad copy');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div className="grid grid-cols-5 gap-6">
+      {/* Controls — 2 cols */}
+      <div className="col-span-2 space-y-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-2 mb-5">
+            <Sparkles className="w-5 h-5 text-purple-500" />
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white">AI Ad Copy Generator</h3>
+          </div>
+          <p className="text-sm text-slate-500 mb-5">
+            Powered by ChatGPT — generate compelling advertising copy for any platform, optimized for apartment leasing.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Property Name *</label>
+              <input
+                type="text"
+                value={propertyName}
+                onChange={(e) => setPropertyName(e.target.value)}
+                placeholder="e.g., Sunset Ridge Apartments"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Platform</label>
+              <select
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500"
+              >
+                {platforms.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Objective</label>
+              <select
+                value={objective}
+                onChange={(e) => setObjective(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500"
+              >
+                {objectives.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Special Offer (optional)</label>
+              <input
+                type="text"
+                value={specialOffer}
+                onChange={(e) => setSpecialOffer(e.target.value)}
+                placeholder="e.g., First month free, $500 off move-in"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Variations</label>
+              <select
+                value={numVariations}
+                onChange={(e) => setNumVariations(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500"
+              >
+                {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} variation{n > 1 ? 's' : ''}</option>)}
+              </select>
+            </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={generating || !propertyName.trim()}
+              className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Generating with ChatGPT...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  Generate Ad Copy
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Results — 3 cols */}
+      <div className="col-span-3 space-y-4">
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-red-600 dark:text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+
+        {!results && !generating && !error && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-12 border border-slate-200 dark:border-slate-700 text-center">
+            <Sparkles className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-500 dark:text-slate-400 mb-2">AI-Powered Ad Copy</h3>
+            <p className="text-sm text-slate-400 dark:text-slate-500 max-w-md mx-auto">
+              Enter your property details and click &quot;Generate&quot; to create platform-optimized ad copy powered by ChatGPT.
+            </p>
+          </div>
+        )}
+
+        {generating && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-12 border border-slate-200 dark:border-slate-700 text-center">
+            <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
+            <p className="text-slate-600 dark:text-slate-300 font-medium">ChatGPT is generating your ad copy...</p>
+            <p className="text-sm text-slate-400 mt-1">This usually takes 5-10 seconds</p>
+          </div>
+        )}
+
+        {results && results.variations && (
+          <>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+                {results.num_variations} Variations for {results.platform?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+              </h3>
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Regenerate
+              </button>
+            </div>
+
+            {results.variations.map((variation: any, idx: number) => (
+              <div key={idx} className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-purple-600 bg-purple-50 dark:bg-purple-900/30 px-2.5 py-1 rounded">
+                    Variation {idx + 1}
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(JSON.stringify(variation, null, 2))}
+                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 transition-colors"
+                    title="Copy to clipboard"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {variation.headline && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Headline</span>
+                      <p className="text-base font-semibold text-slate-800 dark:text-white">{variation.headline}</p>
+                    </div>
+                  )}
+                  {variation.headlines && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Headlines</span>
+                      {variation.headlines.map((h: string, i: number) => (
+                        <p key={i} className="text-base font-semibold text-slate-800 dark:text-white">{h}</p>
+                      ))}
+                    </div>
+                  )}
+                  {variation.primary_text && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Primary Text</span>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">{variation.primary_text}</p>
+                    </div>
+                  )}
+                  {variation.caption && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Caption</span>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">{variation.caption}</p>
+                    </div>
+                  )}
+                  {variation.intro_text && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Intro Text</span>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">{variation.intro_text}</p>
+                    </div>
+                  )}
+                  {variation.description && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Description</span>
+                      <p className="text-sm text-slate-500">{variation.description}</p>
+                    </div>
+                  )}
+                  {variation.descriptions && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Descriptions</span>
+                      {variation.descriptions.map((d: string, i: number) => (
+                        <p key={i} className="text-sm text-slate-500">{d}</p>
+                      ))}
+                    </div>
+                  )}
+                  {variation.hook_text && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Hook</span>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">{variation.hook_text}</p>
+                    </div>
+                  )}
+                  {variation.hashtags && (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {(Array.isArray(variation.hashtags) ? variation.hashtags : []).map((tag: string, i: number) => (
+                        <span key={i} className="text-xs text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded">
+                          {tag.startsWith('#') ? tag : `#${tag}`}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {variation.cta && (
+                    <div className="mt-2">
+                      <span className="inline-block px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg">
+                        {variation.cta}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {results.usage && (
+              <p className="text-xs text-slate-400 text-right">
+                Tokens used: {results.usage.total_tokens} ({results.model_used})
+              </p>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

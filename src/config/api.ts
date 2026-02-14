@@ -89,6 +89,7 @@ export const API_ENDPOINTS = {
       execute: '/api/v1/agents/marketing/execute',
       analyzeCampaign: '/api/v1/agents/marketing/analyze-campaign',
       optimizeBudget: '/api/v1/agents/marketing/optimize-budget',
+      generateAdCopy: '/api/v1/agents/marketing/generate-ad-copy',
       activity: '/api/v1/agents/marketing/activity',
     },
     property: {
@@ -109,5 +110,12 @@ export const API_ENDPOINTS = {
     profile: '/api/v1/settings/profile',
     notifications: '/api/v1/settings/notifications',
     integrations: '/api/v1/settings/integrations',
+  },
+  // Ad Copy Generation (ChatGPT)
+  adCopy: {
+    generate: '/api/v1/ad-copy/generate',
+    socialPost: '/api/v1/ad-copy/social-post',
+    improve: '/api/v1/ad-copy/improve',
+    campaignStrategy: '/api/v1/ad-copy/campaign-strategy',
   },
 } as const;
